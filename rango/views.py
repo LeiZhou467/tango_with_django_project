@@ -1,8 +1,8 @@
-from rango.forms import CategoryForm, PageForm, UserForm, UserProfileForm
-from django.shortcuts import redirect, render
+from rango.forms import CategoryForm, CommentForm, PageForm, UserForm, UserProfileForm
+from django.shortcuts import redirect, render, resolve_url
 from django.urls import reverse
 from django.http import HttpResponse
-from rango.models import Category, Page
+from rango.models import Category, Page,Comment
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from datetime import datetime
@@ -32,6 +32,7 @@ def about(request):
 
 def show_category(request, category_name_slug):
     context_dict= {}
+    form = CommentForm()
 
     try:
         category = Category.objects.get(slug=category_name_slug)
@@ -41,10 +42,29 @@ def show_category(request, category_name_slug):
     except Category.DoesNotExist:
         context_dict['category'] = None
         context_dict['pages'] = None
+    context_dict['form'] = form
+
+    if request.method == 'POST':
+        add_comment(request)
     
+    try:
+        comment = Comment.objects.order_by('-posttime')[:6]
+        context_dict['comments'] = comment
+    except Comment.DoesNotExist:
+        context_dict['comments'] = None
+
     return render(request, 'rango/category.html', context=context_dict)
 
-@login_required
+def add_comment(request):
+    form = CommentForm(request.POST)
+    if form.is_valid() and form['content'] != '':
+        f = form.save(commit=False)
+        f.username = get_server_side_cookie(request, 'username', 'Anonym')
+        f.save()
+    else:
+        print(form.errors)
+    
+
 def add_category(request):
     form = CategoryForm()
 
@@ -126,6 +146,7 @@ def user_login(request):
         if user:
             if user.is_active:
                 login(request, user)
+                request.session['username'] = username
                 return redirect(reverse('rango:index'))
             else:
                 return HttpResponse("Your Rango account is disabled.")

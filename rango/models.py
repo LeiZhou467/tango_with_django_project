@@ -40,3 +40,7 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return self.user.username
+
+class Comment(models.Model):
+    username = models.CharField(max_length=12)
+    content = models.CharField(max_length=128)
